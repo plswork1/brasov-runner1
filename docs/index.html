@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ro">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b2447" />
+    <meta name="description" content="Brașov Runner - fugi de urs prin Brașov: pârtia din Poiana, Strada Republicii, Tractorul, AFI și Lacul Noua!" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Brașov Runner" />
+    <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <title>Brașov Runner</title>
+    <script type="module" crossorigin src="./assets/index-BXvmy-Lw.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-kbxBYy2F.css">
+  <link rel="manifest" href="./manifest.webmanifest"></head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+      <div id="slowmo"></div>
+      <div id="flash"></div>
+      <div id="warp"></div>
+      <div id="edge" aria-hidden="true"></div>
+      <div id="level-title" hidden>
+        <span id="level-num" class="level-num"></span>
+        <span id="level-name" class="level-name"></span>
+        <span id="level-sub" class="level-sub"></span>
+      </div>
+
+      <!-- HUD din timpul cursei -->
+      <div id="hud" hidden>
+        <div class="hud-left">
+          <div class="hud-score"><span class="hud-label">SCOR</span><span id="hud-score">0</span></div>
+          <div class="hud-row">
+            <span class="hud-chip"><span class="coin-dot"></span><span id="hud-coins">0</span></span>
+            <span class="hud-chip" id="hud-crown-chip" hidden><span class="crown-dot">👑</span><span id="hud-crowns">0</span></span>
+            <span class="hud-chip"><span id="hud-speed">0</span><small>km/h</small></span>
+          </div>
+          <span class="hud-chip hud-level" id="hud-level"></span>
+        </div>
+        <div class="hud-right">
+          <button id="btn-emote" class="icon-btn" type="button" aria-label="Arată emoji-ul" hidden></button>
+          <button id="btn-mute" class="icon-btn" type="button" aria-label="Oprește sunetul">
+            <span id="mute-icon">♪</span>
+          </button>
+          <button id="btn-pause" class="icon-btn" type="button" aria-label="Pauză">❚❚</button>
+        </div>
+        <div id="combo" hidden aria-hidden="true">
+          <span class="combo-x" id="combo-x">×3</span>
+          <span class="combo-label">SERIE</span>
+          <span class="combo-track"><span id="combo-fill"></span></span>
+        </div>
+        <div id="popups" aria-live="off"></div>
+        <div id="bear-bar" hidden>
+          <span class="bear-label">TE URMĂREȘTE URSUL</span>
+          <div class="bear-track"><div id="bear-fill"></div></div>
+        </div>
+        <div id="emote" hidden></div>
+      </div>
+      <div id="hints" hidden></div>
+
+      <!-- Meniul principal -->
+      <section id="screen-start" class="screen menu" hidden>
+        <div class="menu-grid">
+          <div class="panel menu-main">
+            <button id="btn-account" class="account-chip" type="button" hidden>
+              <span class="account-ico">👤</span><span id="account-chip-text">Invitat</span>
+            </button>
+            <div class="wallet" aria-label="Portofel">
+              <span class="chip"><span class="coin-dot"></span><b data-wallet="coins">0</b></span>
+              <span class="chip crown"><span class="crown-dot">👑</span><b data-wallet="crowns">0</b></span>
+            </div>
+            <svg class="logo-mark" viewBox="0 0 64 40" aria-hidden="true" focusable="false">
+              <path d="M2 38 22 8l9 13 7-9 24 26z" fill="#2a6fb5" />
+              <path d="M22 8l-8 12 5-3 3 4 4-3 2 3z" fill="#fff" />
+              <path d="M38 12l-7 9 4-2 3 3 3-3 2 2z" fill="#dff1ff" />
+              <circle cx="50" cy="9" r="4" fill="#ffcf3f" />
+            </svg>
+            <h1 class="title">BRAȘOV<br />RUNNER</h1>
+            <p class="subtitle">Fugi de urs prin Brașov!</p>
+            <button id="btn-play" class="btn primary" type="button">JOACĂ</button>
+            <div class="level-pick-wrap">
+              <span class="level-pick-label">Pornește din</span>
+              <div id="level-pick" class="level-pick" role="radiogroup" aria-label="Nivelul de start"></div>
+            </div>
+            <nav class="menu-nav" aria-label="Meniu">
+              <button id="btn-missions" class="nav-btn" type="button">
+                <span class="nav-ico">🎯</span><span>Misiuni</span><i class="badge" id="badge-missions" hidden></i>
+              </button>
+              <button id="btn-pass" class="nav-btn" type="button">
+                <span class="nav-ico">🏔️</span><span>Pass</span><i class="badge" id="badge-pass" hidden></i>
+              </button>
+              <button id="btn-wardrobe" class="nav-btn" type="button">
+                <span class="nav-ico">🧥</span><span>Garderobă</span>
+              </button>
+            </nav>
+            <div class="controls">
+              <div class="controls-desktop">
+                <span><kbd>←</kbd><kbd>→</kbd> schimbi culoarul</span>
+                <span><kbd>↑</kbd> / <kbd>Space</kbd> sari</span>
+                <span><kbd>↓</kbd> aluneci</span>
+                <span><kbd>Esc</kbd> pauză</span>
+                <span>mouse: click stânga / dreapta / mijloc</span>
+              </div>
+              <div class="controls-touch">Swipe stânga / dreapta ca să schimbi culoarul, în sus ca să sari, în jos ca să aluneci</div>
+            </div>
+            <div class="menu-foot">
+              <button id="btn-install" class="link-btn" type="button" hidden>⬇ Instalează aplicația</button>
+              <button id="btn-sound" class="link-btn" type="button">Sunet: pornit</button>
+              <button id="btn-music" class="link-btn" type="button" hidden>Muzică: pornită</button>
+            </div>
+            <p id="app-version" class="hint"></p>
+            <p id="ios-hint" class="hint" hidden>Pe iPhone: apasă „Partajează”, apoi „Adaugă pe ecranul principal”.</p>
+            <p id="save-warning" class="hint warn" hidden></p>
+          </div>
+          <div class="panel menu-side">
+            <button id="side-pass" class="side-card" type="button" aria-label="Deschide pass-ul">
+              <span class="side-title" id="side-pass-name">Pass-ul Tâmpa</span>
+              <span class="side-sub" id="side-pass-sub"></span>
+              <span class="xp-bar"><span id="side-pass-fill"></span></span>
+            </button>
+            <h2 class="board-title">Misiunile de azi</h2>
+            <ul id="side-missions" class="side-missions"></ul>
+            <h2 class="board-title" id="board-start-title">Top 10</h2>
+            <ol id="board-start" class="board"></ol>
+            <p id="board-start-note" class="board-note" hidden></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Conectare / cont -->
+      <section id="screen-login" class="screen sub" hidden>
+        <div class="panel small login">
+          <button class="back-btn" type="button" id="btn-login-back">‹ Înapoi</button>
+          <div class="login-art" aria-hidden="true">🏔️</div>
+          <h2 class="panel-title" id="login-title">Bine ai venit!</h2>
+          <p class="sub-note" id="login-text"></p>
+          <div id="login-buttons"></div>
+          <button id="btn-login-guest" class="btn ghost" type="button">Joacă ca invitat</button>
+          <div id="account-box" hidden>
+            <b id="account-name"></b>
+            <span id="account-status"></span>
+            <button id="btn-logout" class="btn" type="button">Deconectează-te</button>
+          </div>
+          <p class="name-msg" id="login-msg" hidden></p>
+          <p class="hint" id="login-note"></p>
+        </div>
+      </section>
+
+      <!-- Misiuni -->
+      <section id="screen-missions" class="screen sub" hidden>
+        <div class="panel wide">
+          <header class="sub-head">
+            <button class="back-btn" type="button" data-back>‹ Înapoi</button>
+            <h2 class="panel-title">Misiuni</h2>
+            <div class="wallet mini">
+              <span class="chip"><span class="coin-dot"></span><b data-wallet="coins">0</b></span>
+              <span class="chip crown"><span class="crown-dot">👑</span><b data-wallet="crowns">0</b></span>
+            </div>
+          </header>
+          <div class="tabs" id="mission-tabs" role="tablist"></div>
+          <p class="sub-note" id="missions-note"></p>
+          <ul id="missions-list" class="mission-list"></ul>
+          <div id="daily-bonus" class="bonus-row" hidden>
+            <span id="daily-bonus-text"></span>
+            <button id="btn-daily-bonus" class="btn small primary" type="button">Revendică</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Battle pass -->
+      <section id="screen-pass" class="screen sub" hidden>
+        <div class="panel wide">
+          <header class="sub-head">
+            <button class="back-btn" type="button" data-back>‹ Înapoi</button>
+            <h2 class="panel-title">Pass-ul Tâmpa</h2>
+            <div class="wallet mini">
+              <span class="chip"><span class="coin-dot"></span><b data-wallet="coins">0</b></span>
+              <span class="chip crown"><span class="crown-dot">👑</span><b data-wallet="crowns">0</b></span>
+            </div>
+          </header>
+          <div class="pass-top">
+            <div class="pass-featured" id="pass-featured"></div>
+            <div class="pass-line"><b id="pass-season"></b><span id="pass-days"></span></div>
+            <div class="pass-line"><span id="pass-tier"></span><span id="pass-xp"></span></div>
+            <div class="xp-bar big"><span id="pass-fill"></span></div>
+            <div class="pass-actions">
+              <button id="btn-pass-premium" class="btn small gold" type="button"></button>
+              <button id="btn-pass-claim-all" class="btn small primary" type="button">Revendică tot</button>
+            </div>
+            <p class="sub-note" id="pass-note"></p>
+          </div>
+          <div class="pass-head"><span>Treaptă</span><span>Gratuit</span><span>Premium</span></div>
+          <ol id="pass-list" class="pass-list"></ol>
+        </div>
+      </section>
+
+      <!-- Garderoba: skinuri, trail-uri, emoji (previzualizarea 3D se vede în spatele panoului) -->
+      <section id="screen-wardrobe" class="screen sub wardrobe" hidden>
+        <div class="panel sheet">
+          <header class="sub-head">
+            <button class="back-btn" type="button" data-back>‹ Înapoi</button>
+            <h2 class="panel-title">Garderobă</h2>
+            <div class="wallet mini">
+              <span class="chip"><span class="coin-dot"></span><b data-wallet="coins">0</b></span>
+              <span class="chip crown"><span class="crown-dot">👑</span><b data-wallet="crowns">0</b></span>
+            </div>
+          </header>
+          <div class="tabs" id="wardrobe-tabs" role="tablist"></div>
+          <div class="chip-row" id="wardrobe-rides"></div>
+          <div id="wardrobe-list" class="card-list"></div>
+          <div class="wardrobe-info">
+            <b id="wardrobe-name"></b>
+            <span id="wardrobe-desc"></span>
+            <button id="btn-wardrobe-action" class="btn small primary" type="button"></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pauză -->
+      <section id="screen-pause" class="screen" hidden>
+        <div class="panel small">
+          <h2 class="panel-title">Pauză</h2>
+          <button id="btn-resume" class="btn primary" type="button">CONTINUĂ</button>
+          <button id="btn-restart" class="btn" type="button">DE LA CAPĂT</button>
+          <button id="btn-menu-pause" class="btn ghost" type="button">MENIU</button>
+        </div>
+      </section>
+
+      <!-- Continui? (revive) -->
+      <section id="screen-revive" class="screen" hidden>
+        <div class="panel small">
+          <h2 class="panel-title">Continui?</h2>
+          <p class="sub-note" id="revive-sub"></p>
+          <button id="btn-revive-ad" class="btn primary" type="button">▶ Vezi o reclamă</button>
+          <button id="btn-revive-crowns" class="btn gold" type="button"></button>
+          <p class="sub-note" id="revive-wallet"></p>
+          <p class="name-msg" id="revive-msg" hidden></p>
+          <button id="btn-revive-no" class="btn ghost" type="button">Nu, mulțumesc</button>
+        </div>
+      </section>
+
+      <!-- Sfârșitul cursei -->
+      <section id="screen-over" class="screen" hidden>
+        <div class="panel">
+          <h2 id="over-title" class="panel-title">Te-a prins ursul!</h2>
+          <div class="over-record" id="over-record" hidden>★ RECORD NOU ★</div>
+          <div class="over-score" id="over-score">0</div>
+          <div class="over-stats">
+            <span><b id="over-coins">0</b> bănuți</span>
+            <span><b id="over-distance">0</b> m</span>
+            <span id="over-crowns-wrap" hidden><b id="over-crowns">0</b> 👑</span>
+          </div>
+          <div class="over-style" id="over-style" hidden></div>
+          <div class="over-earned" id="over-earned"></div>
+          <ul class="over-missions" id="over-missions" hidden></ul>
+          <form id="name-form" class="name-form" autocomplete="off" hidden>
+            <p id="name-msg" class="name-msg">Scor nou în Top 10! Scrie-ți numele:</p>
+            <div class="name-row">
+              <input id="name-input" type="text" maxlength="12" placeholder="Numele tău" spellcheck="false" />
+              <button id="btn-save" class="btn primary" type="submit">SALVEAZĂ</button>
+            </div>
+          </form>
+          <p id="over-note" class="name-msg" hidden></p>
+          <h2 class="board-title" id="board-over-title">Top 10</h2>
+          <ol id="board-over" class="board"></ol>
+          <div class="over-buttons">
+            <button id="btn-again" class="btn primary" type="button">JOACĂ DIN NOU</button>
+            <button id="btn-menu-over" class="btn ghost" type="button">MENIU</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Telefon ținut pe orizontală -->
+      <section id="screen-rotate" class="screen solid" hidden>
+        <div class="panel small">
+          <div class="rotate-icon">⟳</div>
+          <p>Rotește telefonul pe verticală ca să joci</p>
+        </div>
+      </section>
+
+      <!-- Reclamă simulată (MockAdProvider): nu contactează nicio rețea de reclame -->
+      <section id="ad-overlay" class="screen solid ad" hidden aria-live="polite">
+        <div class="ad-box">
+          <span class="ad-tag">RECLAMĂ · simulare</span>
+          <div class="ad-art" aria-hidden="true">🏔️🐻</div>
+          <p class="ad-title">Aici ar apărea o reclamă</p>
+          <p class="ad-text">Aceasta este o reclamă falsă, de test. Jocul nu contactează nicio rețea de reclame și nu urmărește pe nimeni.</p>
+          <div class="xp-bar big"><span id="ad-fill"></span></div>
+          <p class="ad-count" id="ad-count"></p>
+          <p class="ad-note">Reclama nu poate fi sărită. Recompensa se dă doar dacă este văzută până la capăt.</p>
+        </div>
+      </section>
+
+      <div id="fx" aria-hidden="true"></div>
+      <div id="toasts" aria-live="polite"></div>
+
+      <noscript><p style="padding:2rem">Brașov Runner are nevoie de JavaScript.</p></noscript>
+    </div>
+  </body>
+</html>
