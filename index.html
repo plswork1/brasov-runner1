@@ -1,0 +1,553 @@
+<title>Brașov Runner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Figtree:wght@400;600&display=swap">
+<style>
+/* Layout: one full-screen canvas, HUD pinned top, overlays centered. Single dusk look by choice. */
+:root {
+  --dusk-top: #1d2a44;
+  --dusk-low: #e9925a;
+  --ink: #141824;
+  --paper: #fbf3e4;
+  --ochre: #f2b544;
+  --brick: #c4452f;
+  --muted: #b9b2a6;
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--ink); color: var(--paper); font-family: var(--body); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+#wrap { position: relative; width: 100%; height: 100%; }
+canvas { display: block; width: 100%; height: 100%; }
+#hud {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding-top: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none; font-variant-numeric: tabular-nums;
+}
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-family: var(--display); font-weight: 800; font-size: clamp(22px, 4vw, 32px); line-height: 1; text-shadow: 0 2px 0 rgba(0,0,0,.35); }
+.stat span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.stat.right { text-align: right; align-items: flex-end; }
+#place {
+  position: absolute; left: 50%; top: 18%; transform: translateX(-50%);
+  font-family: var(--display); font-weight: 800; font-size: clamp(20px, 4.5vw, 38px);
+  color: var(--ochre); text-shadow: 0 3px 0 rgba(0,0,0,.4); white-space: nowrap;
+  opacity: 0; transition: opacity .4s; pointer-events: none;
+}
+#place.show { opacity: 1; }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: linear-gradient(180deg, rgba(20,24,36,.25), rgba(20,24,36,.7));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.card { max-width: 30rem; display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.card h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(40px, 9vw, 76px); line-height: .92; letter-spacing: -.02em; text-wrap: balance; }
+.card h1 em { font-style: normal; color: var(--ochre); }
+.card p { margin: 0; line-height: 1.5; color: var(--paper); opacity: .9; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 14px; }
+.keys kbd { font-family: var(--body); font-weight: 600; background: rgba(251,243,228,.12); border: 1px solid rgba(251,243,228,.25); border-radius: 4px; padding: 1px 7px; white-space: nowrap; }
+button.go {
+  font-family: var(--display); font-weight: 800; font-size: 20px;
+  background: var(--brick); color: var(--paper); border: 0; border-radius: 999px;
+  padding: 12px 28px; cursor: pointer; box-shadow: 0 4px 0 #7d2a1c;
+}
+button.go:active { transform: translateY(2px); box-shadow: 0 2px 0 #7d2a1c; }
+button:focus-visible { outline: 3px solid var(--ochre); outline-offset: 3px; }
+.big { font-family: var(--display); font-weight: 800; font-size: 44px; line-height: 1; color: var(--ochre); }
+#touch {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: space-between;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+#touch button {
+  pointer-events: auto; width: 76px; height: 76px; border-radius: 50%;
+  border: 2px solid rgba(251,243,228,.35); background: rgba(20,24,36,.35); color: var(--paper);
+  font-family: var(--body); font-weight: 600; font-size: 13px;
+}
+@media (pointer: coarse) { #touch { display: flex; } }
+</style>
+
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div id="hud">
+    <div class="stat"><b id="dist">0 m</b><span>distanță</span></div>
+    <div class="stat right"><b id="coins">0</b><span>covrigi · record <i id="best" style="font-style:normal">0</i> m</span></div>
+  </div>
+  <div id="place"></div>
+  <div id="touch">
+    <button id="tSlide" aria-label="Alunecă">▼<br>Alunecă</button>
+    <button id="tJump" aria-label="Sari">▲<br>Sari</button>
+  </div>
+  <div class="overlay" id="start">
+    <div class="card">
+      <h1>Brașov <em>Runner</em></h1>
+      <p>Fugi prin centrul vechi, de sub Tâmpa până la Poarta Ecaterinei. Sari peste bănci și câini, alunecă pe sub ghirlande și strânge cât mai mulți covrigi.</p>
+      <div class="keys">
+        <kbd>Space / ↑</kbd><span>sari (apasă de două ori pentru salt dublu)</span>
+        <kbd>↓</kbd><span>alunecă</span>
+        <kbd>Atingere</kbd><span>butoanele de jos pe telefon</span>
+      </div>
+      <button class="go" id="play">Pornește</button>
+    </div>
+  </div>
+  <div class="overlay" id="over" hidden>
+    <div class="card">
+      <h1>Ai căzut!</h1>
+      <div class="big" id="final">0 m</div>
+      <p id="finalSub"></p>
+      <button class="go" id="again">Încă o tură</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const cv = document.getElementById('c');
+  const ctx = cv.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const H = 360;            // logical height
+  let W = 640, scale = 1, dpr = 1;
+  const GROUND = H - 64;
+
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    scale = r.height / H;
+    W = r.width / scale;
+    cv.width = Math.round(r.width * dpr);
+    cv.height = Math.round(r.height * dpr);
+  }
+  window.addEventListener('resize', resize);
+
+  let best = 0;
+  try { best = +localStorage.getItem('brasov-best') || 0; } catch (e) {}
+  $('best').textContent = best;
+
+  // Seeded random so the skyline is stable
+  let seed = 7;
+  const srand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  // Saxon houses with "eye" dormers
+  const facade = ['#d98b4a', '#e6c26a', '#b9583f', '#8fa38a', '#d9a7a0', '#e8dcc0', '#7f9bb0', '#c97a5d'];
+  const houses = []; let houseLen = 0;
+  while (houseLen < 2600) {
+    const w = 70 + Math.floor(srand() * 60);
+    houses.push({ x: houseLen, w, h: 70 + srand() * 45, roof: 34 + srand() * 26, col: facade[Math.floor(srand() * facade.length)], eyes: 1 + Math.floor(srand() * 3), floors: 2 + Math.floor(srand() * 2) });
+    houseLen += w;
+  }
+
+  const places = ['Piața Sfatului', 'Strada Republicii', 'Biserica Neagră', 'Strada Sforii', 'Bastionul Țesătorilor', 'Poarta Schei', 'Turnul Alb', 'Turnul Negru', 'Poarta Ecaterinei', 'Aleea de sub Tâmpa'];
+
+  // ---------- game state ----------
+  let state = 'menu', t = 0, speed, dist, coins, scroll, obstacles, items, pops, nextSpawn, placeIdx, shake;
+  const P = { x: 96, y: 0, vy: 0, w: 26, h: 48, jumps: 0, slide: 0, run: 0 };
+
+  function reset() {
+    speed = 330; dist = 0; coins = 0; scroll = 0; shake = 0;
+    obstacles = []; items = []; pops = []; nextSpawn = 600; placeIdx = 0;
+    P.y = GROUND; P.vy = 0; P.jumps = 0; P.slide = 0;
+  }
+  reset();
+
+  function jump() {
+    if (state !== 'play') return;
+    if (P.y >= GROUND - 0.5) { P.vy = -760; P.jumps = 1; P.slide = 0; }
+    else if (P.jumps < 2) { P.vy = -660; P.jumps = 2; }
+  }
+  function slide() {
+    if (state !== 'play') return;
+    if (P.y < GROUND - 0.5) P.vy = Math.max(P.vy, 700); // fast drop
+    P.slide = 0.62;
+  }
+
+  function spawn() {
+    const x = scroll + W + 40;
+    const lvl = Math.min(1, dist / 3000);
+    const r = Math.random();
+    let o;
+    if (r < 0.3) o = { kind: 'bench', w: 52, h: 26 };
+    else if (r < 0.5) o = { kind: 'dog', w: 42, h: 28, vx: 60 + Math.random() * 60 };
+    else if (r < 0.66) o = { kind: 'cart', w: 58, h: 44 };
+    else o = { kind: 'garland', w: 70, h: 120 };
+    o.x = x; o.y = o.kind === 'garland' ? GROUND - 36 - o.h : GROUND - o.h;
+    obstacles.push(o);
+    // covrigi
+    const n = 3 + Math.floor(Math.random() * 3);
+    const arc = o.kind !== 'garland';
+    for (let i = 0; i < n; i++) {
+      const ix = x + o.w / 2 + (i - (n - 1) / 2) * 30;
+      const iy = arc ? GROUND - 70 - Math.sin((i + .5) / n * Math.PI) * 70 : GROUND - 16;
+      items.push({ x: ix, y: iy, got: false });
+    }
+    const gap = 260 + Math.random() * 300 - lvl * 80 + speed * 0.35;
+    nextSpawn = x + gap;
+  }
+
+  function showPlace(name) {
+    const el = $('place'); el.textContent = name; el.classList.add('show');
+    clearTimeout(showPlace.tm); showPlace.tm = setTimeout(() => el.classList.remove('show'), 1800);
+  }
+
+  function hit(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function die() {
+    state = 'over'; shake = 0.35;
+    const m = Math.floor(dist);
+    const isBest = m > best;
+    if (isBest) { best = m; try { localStorage.setItem('brasov-best', String(best)); } catch (e) {} }
+    $('best').textContent = best;
+    $('final').textContent = m + ' m';
+    $('finalSub').textContent = `${coins} covrigi strânși. ` + (isBest ? 'Record nou!' : `Recordul tău: ${best} m.`);
+    setTimeout(() => { $('over').hidden = false; $('again').focus(); }, 450);
+  }
+
+  function update(dt) {
+    t += dt;
+    if (shake > 0) shake -= dt;
+    if (state !== 'play') { if (state === 'menu') scroll += 60 * dt; P.run += dt * 4; return; }
+    speed = Math.min(780, speed + 7 * dt);
+    const dx = speed * dt;
+    scroll += dx; dist += dx / 40;
+    P.run += dt * speed / 40;
+
+    P.vy += 2300 * dt; P.y += P.vy * dt;
+    if (P.y >= GROUND) { P.y = GROUND; P.vy = 0; P.jumps = 0; }
+    if (P.slide > 0) P.slide -= dt;
+
+    if (scroll + W + 40 >= nextSpawn) spawn();
+
+    const sliding = P.slide > 0 && P.y >= GROUND - 1;
+    const ph = sliding ? 24 : P.h;
+    const box = { x: scroll + P.x - P.w / 2 + 4, y: P.y - ph + 4, w: P.w - 8, h: ph - 6 };
+
+    for (const o of obstacles) {
+      if (o.vx) o.x -= o.vx * dt;
+      const ob = o.kind === 'garland' ? { x: o.x + 6, y: o.y, w: o.w - 12, h: o.h } : { x: o.x + 5, y: o.y + 4, w: o.w - 10, h: o.h - 4 };
+      if (hit(box, ob)) { die(); return; }
+    }
+    for (const it of items) {
+      if (!it.got && Math.abs(it.x - (scroll + P.x)) < 22 && Math.abs(it.y - (P.y - ph / 2)) < ph / 2 + 12) {
+        it.got = true; coins++; pops.push({ x: it.x, y: it.y, life: 0.6 });
+      }
+    }
+    obstacles = obstacles.filter(o => o.x + o.w > scroll - 60);
+    items = items.filter(i => !i.got && i.x > scroll - 40);
+    pops.forEach(p => { p.life -= dt; p.y -= 50 * dt; });
+    pops = pops.filter(p => p.life > 0);
+
+    const pi = Math.floor(dist / 300);
+    if (pi > placeIdx) { placeIdx = pi; showPlace(places[(pi - 1) % places.length] + ' · ' + pi * 300 + ' m'); }
+
+    $('dist').textContent = Math.floor(dist) + ' m';
+    $('coins').textContent = coins;
+  }
+
+  // ---------- drawing ----------
+  function sky() {
+    const g = ctx.createLinearGradient(0, 0, 0, GROUND);
+    g.addColorStop(0, '#1d2a44'); g.addColorStop(0.55, '#5a4a68'); g.addColorStop(1, '#e9925a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // moon
+    ctx.fillStyle = 'rgba(251,243,228,.9)';
+    ctx.beginPath(); ctx.arc(W * 0.82, 62, 16, 0, 7); ctx.fill();
+    ctx.fillStyle = '#26324d';
+    ctx.beginPath(); ctx.arc(W * 0.82 + 7, 57, 14, 0, 7); ctx.fill();
+  }
+
+  const TP = 1900;
+  const hillY = x => { const u = ((x % TP) + TP) % TP / TP * Math.PI * 2; return 150 - Math.max(0, Math.sin(u * 1 - 0.6)) * 90 - Math.sin(u * 3) * 10; };
+  function tampa() {
+    const off = scroll * 0.06;
+    ctx.fillStyle = '#2d3a3a';
+    ctx.beginPath(); ctx.moveTo(0, H);
+    for (let x = 0; x <= W + 8; x += 8) ctx.lineTo(x, hillY(x + off));
+    ctx.lineTo(W, H); ctx.fill();
+    // forest texture
+    ctx.fillStyle = '#26332f';
+    for (let x = 0; x <= W; x += 14) {
+      const y = hillY(x + off);
+      ctx.beginPath(); ctx.moveTo(x - 6, y + 14); ctx.lineTo(x, y + 2); ctx.lineTo(x + 6, y + 14); ctx.fill();
+    }
+    // the hillside letters
+    const base = Math.floor(off / TP) * TP;
+    for (let k = -1; k <= 1; k++) {
+      const lx = base + k * TP + TP * 0.25 - off;
+      if (lx < -200 || lx > W + 50) continue;
+      ctx.save();
+      ctx.font = '800 22px "Bricolage Grotesque", sans-serif';
+      ctx.fillStyle = '#fbf3e4';
+      ctx.shadowColor = 'rgba(255,240,200,.8)'; ctx.shadowBlur = 8;
+      ctx.fillText('BRAȘOV', lx, hillY(lx + off) + 34);
+      ctx.restore();
+    }
+  }
+
+  function blackChurch(x, base) {
+    ctx.fillStyle = '#2a2530';
+    // nave
+    ctx.fillRect(x + 50, base - 110, 230, 110);
+    ctx.beginPath(); ctx.moveTo(x + 46, base - 110); ctx.lineTo(x + 70, base - 160); ctx.lineTo(x + 260, base - 160); ctx.lineTo(x + 284, base - 110); ctx.fill();
+    // apse
+    ctx.beginPath(); ctx.moveTo(x + 280, base); ctx.lineTo(x + 280, base - 95); ctx.lineTo(x + 315, base - 70); ctx.lineTo(x + 315, base); ctx.fill();
+    // tower
+    ctx.fillRect(x, base - 200, 56, 200);
+    ctx.beginPath(); ctx.moveTo(x - 4, base - 200); ctx.lineTo(x + 28, base - 238); ctx.lineTo(x + 60, base - 200); ctx.fill();
+    ctx.fillRect(x + 26, base - 250, 3, 14);
+    // buttress + windows
+    ctx.fillStyle = 'rgba(242,181,68,.28)';
+    for (let i = 0; i < 6; i++) {
+      const wx = x + 70 + i * 34;
+      ctx.beginPath(); ctx.moveTo(wx, base - 30); ctx.lineTo(wx, base - 82); ctx.lineTo(wx + 7, base - 92); ctx.lineTo(wx + 14, base - 82); ctx.lineTo(wx + 14, base - 30); ctx.fill();
+    }
+    ctx.fillRect(x + 22, base - 170, 12, 22);
+  }
+  function councilHouse(x, base) {
+    ctx.fillStyle = '#3a2f36';
+    ctx.fillRect(x, base - 70, 150, 70);
+    ctx.beginPath(); ctx.moveTo(x - 4, base - 70); ctx.lineTo(x + 20, base - 100); ctx.lineTo(x + 130, base - 100); ctx.lineTo(x + 154, base - 70); ctx.fill();
+    ctx.fillRect(x + 60, base - 160, 30, 90);
+    ctx.fillRect(x + 54, base - 128, 42, 5);
+    ctx.beginPath(); ctx.moveTo(x + 56, base - 160); ctx.lineTo(x + 75, base - 196); ctx.lineTo(x + 94, base - 160); ctx.fill();
+    ctx.fillStyle = 'rgba(242,181,68,.4)';
+    ctx.beginPath(); ctx.arc(x + 75, base - 145, 6, 0, 7); ctx.fill();
+    for (let i = 0; i < 5; i++) ctx.fillRect(x + 12 + i * 27, base - 50, 10, 16);
+  }
+  function landmarks() {
+    const off = scroll * 0.22, L = 1500, base = GROUND - 20;
+    const s = Math.floor(off / L) * L;
+    for (let k = 0; k <= 2; k++) {
+      const b = s + k * L - off;
+      if (b + 400 > -50 && b + 200 < W + 50) blackChurch(b + 200, base);
+      if (b + 1000 > -200 && b + 900 < W + 50) councilHouse(b + 900, base);
+    }
+  }
+
+  function house(h, x) {
+    const top = GROUND - h.h;
+    ctx.fillStyle = h.col; ctx.fillRect(x, top, h.w, h.h);
+    // roof
+    ctx.fillStyle = '#7a3324';
+    ctx.beginPath(); ctx.moveTo(x - 3, top); ctx.lineTo(x + h.w / 2, top - h.roof); ctx.lineTo(x + h.w + 3, top); ctx.fill();
+    ctx.fillStyle = '#5e2619';
+    for (let rx = x + 6; rx < x + h.w - 4; rx += 9) {
+      ctx.fillRect(rx, top - 2, 1, 2);
+    }
+    // the "eyes": eyelid dormers on the roof
+    for (let i = 0; i < h.eyes; i++) {
+      const ey = top - h.roof * (0.3 + i * 0.22);
+      const half = (h.w / 2) * (1 - (0.3 + i * 0.22)) * 0.5;
+      const ex = x + h.w / 2 + (h.eyes > 1 && i === 0 ? -half * 0.4 : 0);
+      ctx.fillStyle = '#4a1d14';
+      ctx.beginPath(); ctx.ellipse(ex, ey, 6, 3, 0, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = 'rgba(255,214,140,.85)';
+      ctx.fillRect(ex - 3, ey - 1, 6, 1.5);
+    }
+    // windows
+    const cols = Math.max(2, Math.floor(h.w / 26));
+    for (let f = 0; f < h.floors; f++) for (let c = 0; c < cols; c++) {
+      const wx = x + (h.w / cols) * (c + 0.5) - 5, wy = top + 12 + f * 26;
+      if (wy + 16 > GROUND - 18) continue;
+      const lit = ((c * 7 + f * 3 + h.x) % 5) < 2;
+      ctx.fillStyle = lit ? '#ffd68c' : '#3a3346';
+      ctx.fillRect(wx, wy, 10, 15);
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(wx, wy + 15, 10, 2);
+    }
+    // door arch
+    ctx.fillStyle = '#4a2e22';
+    ctx.beginPath(); ctx.moveTo(x + h.w / 2 - 8, GROUND); ctx.lineTo(x + h.w / 2 - 8, GROUND - 16); ctx.arc(x + h.w / 2, GROUND - 16, 8, Math.PI, 0); ctx.lineTo(x + h.w / 2 + 8, GROUND); ctx.fill();
+  }
+  function street() {
+    const off = scroll * 0.55;
+    const o = ((off % houseLen) + houseLen) % houseLen;
+    for (const rep of [0, houseLen, houseLen * 2]) {
+      for (const h of houses) {
+        const x = h.x + rep - o;
+        if (x > W || x + h.w < 0) continue;
+        house(h, x);
+      }
+    }
+    // shade at the foot of the façades
+    const g = ctx.createLinearGradient(0, GROUND - 30, 0, GROUND);
+    g.addColorStop(0, 'rgba(20,24,36,0)'); g.addColorStop(1, 'rgba(20,24,36,.45)');
+    ctx.fillStyle = g; ctx.fillRect(0, GROUND - 30, W, 30);
+  }
+
+  function lamps() {
+    const gap = 340, off = scroll;
+    for (let x = -((off % gap) + gap) % gap + 40; x < W + 40; x += gap) {
+      const glow = ctx.createRadialGradient(x, GROUND - 92, 2, x, GROUND - 92, 60);
+      glow.addColorStop(0, 'rgba(255,214,140,.45)'); glow.addColorStop(1, 'rgba(255,214,140,0)');
+      ctx.fillStyle = glow; ctx.fillRect(x - 60, GROUND - 152, 120, 130);
+      ctx.fillStyle = '#141824';
+      ctx.fillRect(x - 2, GROUND - 90, 4, 90);
+      ctx.fillRect(x - 6, GROUND - 6, 12, 6);
+      ctx.fillRect(x - 8, GROUND - 104, 16, 4);
+      ctx.fillStyle = '#ffd68c'; ctx.fillRect(x - 5, GROUND - 100, 10, 10);
+    }
+  }
+
+  function ground() {
+    ctx.fillStyle = '#4b4552'; ctx.fillRect(0, GROUND, W, H - GROUND);
+    ctx.fillStyle = '#5c5563';
+    const rowH = 12, sw = 22;
+    for (let r = 0; r * rowH < H - GROUND; r++) {
+      const y = GROUND + 3 + r * rowH;
+      const o = ((scroll + (r % 2) * sw / 2) % sw + sw) % sw;
+      for (let x = -o; x < W; x += sw) {
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x + 1, y, sw - 3, rowH - 3, 3) : ctx.rect(x + 1, y, sw - 3, rowH - 3); ctx.fill();
+      }
+    }
+    ctx.fillStyle = '#2f2a35'; ctx.fillRect(0, GROUND, W, 3);
+  }
+
+  function obstacle(o) {
+    const x = o.x - scroll, y = o.y;
+    if (o.kind === 'bench') {
+      ctx.fillStyle = '#6b3f26';
+      ctx.fillRect(x, y + 6, o.w, 6); ctx.fillRect(x, y - 8, o.w, 4); ctx.fillRect(x, y - 1, o.w, 4);
+      ctx.fillStyle = '#1e1c22';
+      ctx.fillRect(x + 4, y + 12, 4, o.h - 12); ctx.fillRect(x + o.w - 8, y + 12, 4, o.h - 12);
+      ctx.fillRect(x + 4, y - 8, 3, 20); ctx.fillRect(x + o.w - 7, y - 8, 3, 20);
+    } else if (o.kind === 'dog') {
+      const leg = Math.sin(t * 18) * 3;
+      ctx.fillStyle = '#c8a06a';
+      ctx.fillRect(x + 6, y + 6, 28, 12);
+      ctx.fillRect(x, y, 12, 11);
+      ctx.fillStyle = '#8a6a44';
+      ctx.fillRect(x + 2, y - 3, 4, 5);
+      ctx.fillRect(x + 34, y + 3, 7, 3);
+      ctx.fillStyle = '#c8a06a';
+      ctx.fillRect(x + 8 + leg, y + 18, 4, 10); ctx.fillRect(x + 28 - leg, y + 18, 4, 10);
+      ctx.fillStyle = '#141824'; ctx.fillRect(x + 2, y + 3, 2, 2);
+    } else if (o.kind === 'cart') {
+      ctx.fillStyle = '#2e5b4a'; ctx.fillRect(x, y + 10, o.w, 24);
+      ctx.fillStyle = '#f2b544'; ctx.fillRect(x + 4, y + 14, o.w - 8, 3);
+      const fl = ['#e8586a', '#f2b544', '#fbf3e4', '#c45ad1'];
+      for (let i = 0; i < 6; i++) { ctx.fillStyle = fl[i % 4]; ctx.beginPath(); ctx.arc(x + 7 + i * 9, y + 6 + (i % 2) * 3, 5, 0, 7); ctx.fill(); }
+      ctx.fillStyle = '#1e1c22';
+      ctx.beginPath(); ctx.arc(x + 14, y + 37, 7, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + o.w - 14, y + 37, 7, 0, 7); ctx.fill();
+    } else {
+      // festival garland hanging from above
+      ctx.strokeStyle = '#141824'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x + 4, 0); ctx.lineTo(x + 4, y + o.h); ctx.moveTo(x + o.w - 4, 0); ctx.lineTo(x + o.w - 4, y + o.h); ctx.stroke();
+      const cols = ['#c4452f', '#f2b544', '#2e6b8f'];
+      for (let r = 0; r < 4; r++) {
+        const yy = y + o.h - 8 - r * 26;
+        ctx.strokeStyle = 'rgba(20,24,36,.9)'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(x + 4, yy - 6); ctx.quadraticCurveTo(x + o.w / 2, yy + 6, x + o.w - 4, yy - 6); ctx.stroke();
+        for (let i = 0; i < 5; i++) {
+          const fx = x + 10 + i * ((o.w - 20) / 4), fy = yy - 4 + Math.sin(i / 4 * Math.PI) * 6;
+          ctx.fillStyle = cols[(i + r) % 3];
+          ctx.beginPath(); ctx.moveTo(fx - 5, fy); ctx.lineTo(fx + 5, fy); ctx.lineTo(fx, fy + 10); ctx.fill();
+        }
+      }
+    }
+  }
+
+  function covrig(x, y) {
+    const bob = Math.sin(t * 5 + x * 0.05) * 2;
+    ctx.strokeStyle = '#b87333'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(x, y + bob, 7, 0, 7); ctx.stroke();
+    ctx.fillStyle = '#fbf3e4';
+    for (let i = 0; i < 5; i++) { const a = i * 1.3; ctx.fillRect(x + Math.cos(a) * 7 - 0.7, y + bob + Math.sin(a) * 7 - 0.7, 1.4, 1.4); }
+  }
+
+  function player() {
+    const x = P.x, y = P.y;
+    const sliding = P.slide > 0 && y >= GROUND - 1;
+    const air = y < GROUND - 1;
+    const ph = Math.sin(P.run * 2.2);
+    ctx.save(); ctx.translate(x, y);
+    // shadow
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    const sh = Math.max(0.3, 1 - (GROUND - y) / 160);
+    ctx.beginPath(); ctx.ellipse(0, GROUND - y + 2, 16 * sh, 4 * sh, 0, 0, 7); ctx.fill();
+    if (sliding) {
+      ctx.fillStyle = '#2b3b63'; ctx.fillRect(-18, -12, 30, 10);           // legs
+      ctx.fillStyle = '#c4452f'; ctx.fillRect(-4, -22, 22, 12);            // jacket
+      ctx.fillStyle = '#f0c9a0'; ctx.beginPath(); ctx.arc(20, -22, 7, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f2b544'; ctx.fillRect(13, -31, 14, 5);             // beanie
+      ctx.fillStyle = '#fbf3e4'; ctx.fillRect(-26, -16, 14, 3);            // scarf tail
+    } else {
+      const legA = air ? 0.6 : ph * 0.8, legB = air ? -0.4 : -ph * 0.8;
+      ctx.fillStyle = '#2b3b63';
+      ctx.save(); ctx.translate(-3, -20); ctx.rotate(legA); ctx.fillRect(-3, 0, 6, 20); ctx.restore();
+      ctx.save(); ctx.translate(3, -20); ctx.rotate(legB); ctx.fillRect(-3, 0, 6, 20); ctx.restore();
+      ctx.fillStyle = '#1e1c22';
+      ctx.fillStyle = '#c4452f'; ctx.fillRect(-9, -40, 18, 22);            // jacket
+      ctx.fillStyle = '#a13624';
+      ctx.save(); ctx.translate(0, -36); ctx.rotate(-legA * 0.9); ctx.fillRect(-3, 0, 6, 16); ctx.restore();
+      ctx.fillStyle = '#f0c9a0'; ctx.beginPath(); ctx.arc(1, -47, 8, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f2b544'; ctx.fillRect(-8, -57, 17, 6);            // beanie
+      ctx.beginPath(); ctx.arc(0, -58, 3, 0, 7); ctx.fill();
+      ctx.fillStyle = '#141824'; ctx.fillRect(4, -49, 2, 2);
+      // scarf
+      ctx.fillStyle = '#fbf3e4'; ctx.fillRect(-8, -41, 16, 4);
+      const flap = Math.sin(t * 14) * 2;
+      ctx.fillRect(-20, -40 + flap, 13, 3);
+    }
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+    if (shake > 0) ctx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 8);
+    sky(); tampa(); landmarks(); street(); lamps(); ground();
+    for (const it of items) { const x = it.x - scroll; if (x > -20 && x < W + 20) covrig(x, it.y); }
+    for (const o of obstacles) { const x = o.x - scroll; if (x > -o.w - 10 && x < W + 10) obstacle(o); }
+    player();
+    ctx.font = '700 14px "Figtree", sans-serif'; ctx.fillStyle = '#f2b544';
+    for (const p of pops) { ctx.globalAlpha = Math.max(0, p.life / 0.6); ctx.fillText('+1', p.x - scroll - 8, p.y); }
+    ctx.globalAlpha = 1;
+  }
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000); last = now;
+    update(dt); draw();
+    requestAnimationFrame(frame);
+  }
+
+  function begin() {
+    reset(); state = 'play';
+    $('start').hidden = true; $('over').hidden = true;
+    $('dist').textContent = '0 m'; $('coins').textContent = '0';
+    cv.focus?.();
+  }
+  $('play').addEventListener('click', begin);
+  $('again').addEventListener('click', begin);
+
+  window.addEventListener('keydown', e => {
+    if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) {
+      e.preventDefault();
+      if (state === 'play') jump(); else if (e.code === 'Space' && !e.repeat && document.activeElement?.tagName !== 'BUTTON') begin();
+    }
+    if (['ArrowDown', 'KeyS'].includes(e.code)) { e.preventDefault(); slide(); }
+  });
+  const press = (el, fn) => el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+  press($('tJump'), jump); press($('tSlide'), slide);
+  // swipe down / tap on the canvas
+  let sy = null;
+  cv.addEventListener('pointerdown', e => { sy = e.clientY; });
+  cv.addEventListener('pointerup', e => {
+    if (sy === null) return;
+    if (e.clientY - sy > 30) slide(); else jump();
+    sy = null;
+  });
+
+  resize();
+  requestAnimationFrame(t0 => { last = t0; requestAnimationFrame(frame); });
+  $('play').focus();
+})();
+</script>
