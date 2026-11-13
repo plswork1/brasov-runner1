@@ -104,3 +104,4 @@ v2 added a meta game on top of the v1 runner: two more power-ups, a second (prem
 ## Rules added in v3.3 (owner feedback after play-testing)
 - Camera on a lane change: it only glides sideways after the boy (`CameraRig.sx`, critically damped). No lead, no banking, no change of view direction: the owner found every version of those shaky. Do not add them back.
 - Every standing/riding level has a jump trick: skateboard kickflip (`flipA`), snowboard 360 with a grab (`spinA`, the whole root turns; two turns on a super jump) and bike barspin (`barA` turns `bikeSteer`, the handlebar + fork + front wheel; a backflip was tried and the owner found it too much). The angle reaches a whole turn before the landing and is finished quickly if he lands early.
+- v3.3.2: on Lacul Noua the buoy lines run between the lanes AND on both outer edges (`edge` in `noua.js`), so all three lanes are marked.

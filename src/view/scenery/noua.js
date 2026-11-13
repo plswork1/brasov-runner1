@@ -2,13 +2,14 @@ import * as THREE from 'three';
 import { C, mat, mesh } from '../materials.js';
 import { waterPatch } from '../gfx/patches.js';
 import { Scenery, TRACK_HALF, benchGeometry, canvasTexture, lambertVC, lampGeometry, merged, mountainRange, part, rand, roundTreeGeometry, tint } from './common.js';
+import { CFG } from '../../config.js';
 
 /**
  * Level 5, Lacul Noua: the lake of Noua park at the foot of the forested mountain, ridden on a
  * pedal boat (hidrobicicletă). Green banks with the walking path around the lake, willows hanging
  * over the water, reeds and water lilies, picnic shelters with wooden tables, lanterns, the zip
  * lines (tiroliene) crossing high above the lake, a little landing stage with parked pedal boats,
- * and ducks. Lanes are marked by floating rope lines with small buoys.
+ * and ducks. Lanes are marked by floating rope lines with small buoys (between and around the 3 lanes).
  */
 const HAZE = 0xf2c6a4; // sunset
 const HAZE_FAR = 0xc8a0b8; // the far mountains fade into dusty violet, not into the orange horizon
@@ -208,10 +209,13 @@ export class NouaScenery extends Scenery {
 
   _water() {
     const r = rand(57);
-    // floating rope lines between the lanes, with small red/white buoys
+    // floating rope lines with small red/white buoys: between the lanes AND on the outer edges,
+    // so each of the three lanes is marked on both sides (owner feedback v3.3.2: only the middle
+    // lane looked delimited)
     const buoysW = [];
     const buoysR = [];
-    for (const x of [-1.2, 1.2]) {
+    const edge = (CFG.laneW * 3) / 2;
+    for (const x of [-edge, -CFG.laneW / 2, CFG.laneW / 2, edge]) {
       for (let i = 0; i < 60; i++) (i % 2 ? buoysR : buoysW).push({ o: i * 3, x, y: 0.05 });
     }
     const buoy = new THREE.SphereGeometry(0.16, 8, 6);
