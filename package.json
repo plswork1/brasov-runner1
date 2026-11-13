@@ -1,7 +1,7 @@
 {
   "name": "brasov-runner",
   "private": true,
-  "version": "3.2.0",
+  "version": "3.3.1",
   "description": "Brașov Runner v2: endless runner 3D (stil Subway Surfers) cu tema orașului Brașov. Three.js + Vite, PWA instalabilă, APK Android prin Capacitor. Proiect de facultate.",
   "type": "module",
   "scripts": {

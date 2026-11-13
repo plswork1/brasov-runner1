@@ -100,3 +100,7 @@ v2 added a meta game on top of the v1 runner: two more power-ups, a second (prem
 - UI: `ui.setGlobalBoard(b | null)` replaces the local lists (menu always; game over only when signed in); `renderBoard` remembers the local list so it comes back when the shared one goes away. Names from the server are untrusted: `boardName()` + `textContent`.
 - If the list cannot be loaded (offline, rules not published), the game silently shows the local Top 10 plus a short note. Nothing about the leaderboard may block or break a run.
 - The Firestore rules live in README ("Conturi"); when the `scores` document shape changes, change the rules there AND in the Firebase console.
+
+## Rules added in v3.3 (owner feedback after play-testing)
+- Camera on a lane change: it only glides sideways after the boy (`CameraRig.sx`, critically damped). No lead, no banking, no change of view direction: the owner found every version of those shaky. Do not add them back.
+- Every standing/riding level has a jump trick: skateboard kickflip (`flipA`), snowboard 360 with a grab (`spinA`, the whole root turns; two turns on a super jump) and bike barspin (`barA` turns `bikeSteer`, the handlebar + fork + front wheel; a backflip was tried and the owner found it too much). The angle reaches a whole turn before the landing and is finished quickly if he lands early.

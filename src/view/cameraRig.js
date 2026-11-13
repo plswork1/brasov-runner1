@@ -44,7 +44,6 @@ class Spring {
   }
 }
 
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 // "Reduced motion": the camera keeps following the boy, but rolls, kicks, punches and shake nearly vanish.
 const REDUCED_GAIN = 0.15;
@@ -53,7 +52,7 @@ export class CameraRig {
   constructor(camera) {
     this.camera = camera;
     // Springs: follow (x), banking roll, vertical dip/lift impulses, pull-back on a hit, zoom punch, speed FOV
-    this.sx = new Spring(8, 0.9);
+    this.sx = new Spring(6.5, 1); // critically damped and slower than the boy's own lane spring: the picture glides, never jerks
     this.roll = new Spring(9, 0.85); // nearly critically damped: a smooth bank, no wobble (the wobble felt abrupt)
     this.dip = new Spring(14, 0.55);
     this.back = new Spring(10, 0.6);
@@ -127,13 +126,13 @@ export class CameraRig {
     const portrait = cam.aspect < 0.75;
     const baseY = portrait ? 6.5 : 5.6;
     const baseZ = portrait ? 9.6 : 8.6;
-    const vx = clamp(p.laneVel || 0, -14, 14);
 
-    // Follow with a spring, and look a little into the lane change (the camera leads the boy)
-    const camX = this.sx.step(p.x * 0.55 + vx * 0.045 * g, dt);
+    // v3.3 (owner: the screen shook on every lane change): the camera only glides sideways after the
+    // boy. No lead into the turn, no banking and no change of view direction on a lane change; the
+    // roll spring is still kicked by a hit.
+    const camX = this.sx.step(p.x * 0.5, dt);
     this.camX = camX;
-    // Banking: lean into the turn by ~2.5 degrees at most, with a small wobble after it
-    const roll = this.roll.step(clamp(vx / 12, -1, 1) * 0.03 * g, dt);
+    const roll = this.roll.step(0, dt);
 
     // Trauma shake: smooth noise (sum of sines), amplitude ~ trauma^2
     this.noiseT += dt;
@@ -161,7 +160,7 @@ export class CameraRig {
       baseY + this.camLift * 0.62 + sy + cc * 2.0 + dip,
       baseZ + cc * 1.0 + back * 0.12 - dip * 0.4
     );
-    cam.lookAt(camX * 0.7 + vx * 0.03 * g, 0.9 + this.camLift * 0.5 + dip * 0.3, -9 + cc * 3);
+    cam.lookAt(camX, 0.9 + this.camLift * 0.5 + dip * 0.3, -9 + cc * 3);
     cam.rotateZ(-roll - sr);
 
     // Shake decays (smoothly, with a short linear tail so it never lingers)

@@ -18,7 +18,7 @@ export const CFG = {
   // clean stop, ~2 % overshoot). Reaches the lane (within 0.3) in ~0.075 s, well inside gen.laneTime.
   // Lane change: a critically damped spring (no overshoot), softened after play-testing (it felt abrupt).
   // It must stay within 0.3 of the lane in <= gen.laneTime (the generator's "always a way" assumes it).
-  lane: { omega: 25, zeta: 1, kick: 1.5, overLimit: 0.12 }, // kick: start speed in lane widths / s
+  lane: { omega: 21, zeta: 1, kick: 1.5, overLimit: 0.12 }, // kick: start speed in lane widths / s
 
   // Player hitbox (slightly smaller than the visual model = forgiving)
   player: { halfW: 0.3, halfDepth: 0.3, height: 1.75, slideHeight: 0.7 },

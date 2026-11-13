@@ -91,6 +91,19 @@ export class PlayerView {
       bike.add(m);
       this.bikeParts.push(m);
     };
+    // Everything that turns with the handlebar (front wheel, fork, stem, bar, grips, light) lives in
+    // `front`; `bikeSteer.rotation.y` turns it about the tilted steering axis (the barspin trick).
+    const steerTilt = 0.194;
+    const steerPivot = new THREE.Group();
+    steerPivot.position.set(0, 0.66, -0.56);
+    steerPivot.rotation.x = steerTilt;
+    this.bikeSteer = new THREE.Group();
+    const front = new THREE.Group();
+    front.rotation.x = -steerTilt;
+    front.position.copy(steerPivot.position).applyEuler(new THREE.Euler(-steerTilt, 0, 0)).negate();
+    this.bikeSteer.add(front);
+    steerPivot.add(this.bikeSteer);
+    bike.add(steerPivot);
     this.bikeWheels = [];
     for (const z of [-0.62, 0.62]) {
       const w = new THREE.Group();
@@ -102,7 +115,7 @@ export class PlayerView {
         w.add(spoke);
       }
       w.add(mesh(geo('bkHub', () => new THREE.CylinderGeometry(0.05, 0.05, 0.12, 8).rotateZ(Math.PI / 2)), mat(0x888888), 0, 0, 0));
-      bike.add(w);
+      (z < 0 ? front : bike).add(w);
       this.bikeWheels.push(w);
     }
     tube(0.06, 0.06, 0.7, 0, 0.86, -0.15); // top tube
@@ -111,11 +124,12 @@ export class PlayerView {
     tube(0.05, 0.05, 0.62, 0, 0.36, 0.31); // chain stay
     tube(0.05, 0.05, 0.68, 0, 0.62, 0.4, 0.87); // seat stay
     tube(0.05, 0.52, 0.05, 0, 0.6, -0.56, 0.24); // fork
-    bike.add(mesh(box(0.06, 0.2, 0.06), mat(0xb8bfc7), 0, 0.97, -0.5)); // stem
-    bike.add(mesh(geo('bkBar', () => new THREE.CylinderGeometry(0.025, 0.025, 0.62, 6).rotateZ(Math.PI / 2)), mat(0x333333), 0, 1.06, -0.5));
-    for (const sx of [-1, 1]) bike.add(mesh(box(0.06, 0.06, 0.1), mat(0x222222), sx * 0.3, 1.06, -0.5)); // grips
+    front.add(this.bikeParts[this.bikeParts.length - 1]);
+    front.add(mesh(box(0.06, 0.2, 0.06), mat(0xb8bfc7), 0, 0.97, -0.5)); // stem
+    front.add(mesh(geo('bkBar', () => new THREE.CylinderGeometry(0.025, 0.025, 0.62, 6).rotateZ(Math.PI / 2)), mat(0x333333), 0, 1.06, -0.5));
+    for (const sx of [-1, 1]) front.add(mesh(box(0.06, 0.06, 0.1), mat(0x222222), sx * 0.3, 1.06, -0.5)); // grips
     bike.add(mesh(box(0.2, 0.07, 0.3), mat(0x222222), 0, 0.93, 0.2)); // saddle
-    bike.add(mesh(box(0.16, 0.1, 0.1), mat(0xf2f2f2), 0, 0.9, -0.66)); // front light
+    front.add(mesh(box(0.16, 0.1, 0.1), mat(0xf2f2f2), 0, 0.9, -0.66)); // front light
     bike.add(mesh(box(0.14, 0.06, 0.04), mat(0xe63946), 0, 0.88, 0.48)); // rear reflector
     const crank = new THREE.Group();
     crank.position.set(0, 0.36, 0);
@@ -337,6 +351,8 @@ export class PlayerView {
     this.superAir = false;
     this.flipDir = 1;
     this.flipA = 0;
+    this.spinA = 0; // whole-body trick angle (snowboard 360)
+    this.barA = 0; // bike barspin angle
     this.lastVy = 0;
     this.blinkT = 2;
     this.t = 0;
@@ -445,7 +461,7 @@ export class PlayerView {
 
   reset() {
     for (const s of [this.roll, this.yaw, this.sq, this.hop, this.flinch, this.joy, this.crouch]) s.x = s.v = 0;
-    this.look = this.airK = this.deadK = this.flipA = 0;
+    this.look = this.airK = this.deadK = this.flipA = this.spinA = this.barA = 0;
     this.airT = -1;
     this.tumble = 0;
     this.root.visible = true;
@@ -584,6 +600,23 @@ export class PlayerView {
     }
     rx = rx * (1 - this.deadK) + (boat ? -0.35 : -1.1) * this.deadK;
     lift += 0.1 * this.deadK;
+    // --- snowboard trick: a 360 spin of the whole boy with his board (two turns on a super jump).
+    // The angle ends on a whole turn before the landing.
+    const snow = this.ride === 'snowboard';
+    const TURN = Math.PI * 2;
+    if (this.airT >= 0 && !p.flying && !o.dead && this.tumble <= 0 && snow) {
+      this.spinA = THREE.MathUtils.smoothstep(air, 0.06, 0.8) * TURN * (this.superAir ? 2 : 1) * this.flipDir;
+    } else if (this.spinA) {
+      // landed (or fell) mid-trick: finish to the nearest whole turn quickly, then reset
+      const whole = Math.round(this.spinA / TURN) * TURN;
+      this.spinA += (whole - this.spinA) * (1 - Math.exp(-22 * dt));
+      if (Math.abs(whole - this.spinA) < 0.05 || dt <= 0) this.spinA = 0;
+    }
+    if (this.spinA && snow) ry += this.spinA;
+    if (bike && this.airT >= 0 && !p.flying && !o.dead && this.tumble <= 0) {
+      // the bike turns a little sideways in the air, so the spinning handlebar is not hidden behind his back
+      ry += 0.6 * this.flipDir * Math.sin(THREE.MathUtils.clamp((air - 0.04) / 0.92, 0, 1) * Math.PI);
+    }
     r.rotation.set(rx, ry, rz);
     r.position.y += lift;
 
@@ -631,9 +664,11 @@ export class PlayerView {
     this.body.position.set(0, seat.y, seat.z);
     this.body.rotation.set(0, 0, 0);
     this.hull.position.y = 0;
+    let barOff = 0; // 0..1: hands off the handlebar
+    if (!bike) this.barA = 0;
     if (this.airT >= 0 && !p.flying) {
       if (this.ride === 'snowboard') {
-        // grab: knees up, one hand on the board, nose pulled up
+        // 360 with a grab (the root spins, see spinA): knees up, one hand on the board, nose pulled up
         const w = Math.min(1, bump(0.1, 0.92) * 1.6);
         board.rotation.z = 0.22 * w;
         board.rotation.x = -0.18 * w;
@@ -654,18 +689,24 @@ export class PlayerView {
         aLz -= 0.4 * bump(0.1, 0.9);
         aRz += 0.4 * bump(0.1, 0.9);
       } else if (bike) {
-        // front wheel up (manual) with a small whip of the bike under him
+        // barspin: front wheel up, he lets go and the handlebar spins a full turn, then he catches it
         const w = bump(0.05, 0.95);
-        const a = 0.34 * w;
+        const a = 0.3 * w;
         this._pivot(bk, a, 0.36, 0.62);
-        bk.rotation.z = Math.sin(u * Math.PI * 2) * 0.28 * this.flipDir * Math.min(1, w * 2);
         this.body.rotation.x = a * 0.9;
         this._pivotPos(this.body, a * 0.9, 0.36, 0.62, seat);
         torsoX -= 0.1 * w;
+        this.barA = THREE.MathUtils.smoothstep(u, 0.12, 0.74) * Math.PI * 2 * this.flipDir;
+        barOff = bump(0.08, 0.8);
       } else if (boat) {
         // a hop: the bow lifts, legs kick out
         this.hull.position.y = 0.05 * bump(0, 1);
       }
+    } else if (bike && this.barA) {
+      // landed (or fell) mid-spin: finish to the nearest whole turn quickly
+      const whole = Math.round(this.barA / (Math.PI * 2)) * Math.PI * 2;
+      this.barA += (whole - this.barA) * (1 - Math.exp(-22 * dt));
+      if (Math.abs(whole - this.barA) < 0.05 || dt <= 0) this.barA = 0;
     } else if (skate && this.flipA) {
       // landed (or fell) mid-flip: finish to the nearest whole turn quickly, then reset
       this.flipA += (Math.round(this.flipA / (Math.PI * 2)) * Math.PI * 2 - this.flipA) * (1 - Math.exp(-22 * dt));
@@ -674,6 +715,7 @@ export class PlayerView {
       sg.position.set(0.2 * Math.sin(this.flipA), 0.2 - 0.2 * Math.cos(this.flipA), 0);
     }
     this.torso.rotation.x = torsoX;
+    this.bikeSteer.rotation.y = this.barA;
 
     // legs / pedalling / wheels
     if (boat) {
@@ -702,10 +744,11 @@ export class PlayerView {
         this.seatLegs[i].rotation.x = -0.42 + Math.sin(a) * 0.28;
         this.seatLegs[i].userData.shin.rotation.x = -0.3 + Math.cos(a) * 0.35;
       }
-      aLz = -0.15 - bal * 0.5;
-      aRz = 0.15 - bal * 0.5;
-      aLx = 0.95 - this.flinch.x * 0.8;
-      aRx = 0.95 - this.flinch.x * 0.8;
+      // hands on the grips; during the barspin they let go (up and out of the bar's way)
+      aLz = -0.15 - bal * 0.5 - 0.7 * barOff;
+      aRz = 0.15 - bal * 0.5 + 0.7 * barOff;
+      aLx = 0.95 - this.flinch.x * 0.8 - 0.55 * barOff;
+      aRx = 0.95 - this.flinch.x * 0.8 - 0.55 * barOff;
     } else {
       if (skate) {
         const spin = dt * (o.speed ?? 15) * 9;
