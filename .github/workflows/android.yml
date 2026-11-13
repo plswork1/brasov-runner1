@@ -1,0 +1,46 @@
+# Construiește un APK Android de test (debug) cu Capacitor și îl atașează ca artefact.
+# Pornește manual (Actions -> "APK Android (debug)" -> Run workflow) sau la un tag v*.
+# APK-ul debug este semnat cu cheia de test: bun pentru instalare directă pe telefon, nu pentru Play Store.
+name: APK Android (debug)
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Teste unitare
+        run: npm test
+      - name: Build web pentru Capacitor (fără service worker)
+        run: npm run build:capacitor
+      - name: Generează proiectul Android
+        run: npx cap add android
+      - name: Iconițele aplicației
+        run: node scripts/android-icons.mjs
+      - name: Copiază fișierele web în proiectul Android
+        run: npx cap sync android
+      - name: Construiește APK-ul debug
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: brasov-runner-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

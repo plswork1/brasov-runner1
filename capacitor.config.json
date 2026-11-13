@@ -1,0 +1,13 @@
+{
+  "appId": "ro.unitbv.brasovrunner",
+  "appName": "Brașov Runner",
+  "webDir": "dist",
+  "backgroundColor": "#0b2447",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

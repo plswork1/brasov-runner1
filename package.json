@@ -1,0 +1,32 @@
+{
+  "name": "brasov-runner",
+  "private": true,
+  "version": "3.2.0",
+  "description": "Brașov Runner v2: endless runner 3D (stil Subway Surfers) cu tema orașului Brașov. Three.js + Vite, PWA instalabilă, APK Android prin Capacitor. Proiect de facultate.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:host": "vite --host",
+    "icons": "node scripts/make-icons.mjs",
+    "build": "vite build",
+    "build:capacitor": "vite build --mode capacitor",
+    "preview": "vite preview",
+    "test": "node --test tests/index.test.js",
+    "test:browser": "python3 tests/browser/game_tests.py",
+    "android:init": "npm run build:capacitor && cap add android",
+    "android:sync": "npm run build:capacitor && cap sync android",
+    "android:open": "cap open android"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "firebase": "^13.2.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.6.0",
+    "@capacitor/cli": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "vite": "8.3.5",
+    "vite-plugin-pwa": "2.0.0"
+  }
+}

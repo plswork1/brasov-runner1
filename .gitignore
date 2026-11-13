@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+*.local
+.DS_Store
+# Proiectul Android este generat de Capacitor (npm run android:init), nu se ține în repo
+android
+ios
+*.apk
+__pycache__
